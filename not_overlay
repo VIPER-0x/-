@@ -1,0 +1,131 @@
+using cAlgo.API;
+using System;
+
+namespace cAlgo.Robots
+{
+    [Robot(AccessRights = AccessRights.None)]
+    public class TradingViewWebView : Robot
+    {
+        private WebView _webView;
+        private Window _window;
+        private Button _reloadButton;
+        private TextBox _symbolTextBox;
+
+        protected override void OnStart()
+        {
+            // Create control panel
+            var controlPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                BackgroundColor = Color.Black,
+                Margin = 3
+            };
+
+            _symbolTextBox = new TextBox
+            {
+                Text = "FXOPEN:XAUUSD",
+                Width = 150,
+                Margin = 3
+            };
+
+            _reloadButton = new Button
+            {
+                Text = "Reload Chart",
+                Margin = 3
+            };
+            _reloadButton.Click += OnReloadButtonClick;
+
+            controlPanel.AddChild(_symbolTextBox);
+            controlPanel.AddChild(_reloadButton);
+
+            // Create main layout with 2 rows, 1 column
+            var mainGrid = new Grid(2, 1);
+            mainGrid.Rows[0].SetHeightToAuto();
+            mainGrid.Rows[1].SetHeightInStars(1);
+
+            // Create WebView
+            _webView = new WebView
+            {
+                DefaultBackgroundColor = Color.Black,
+                Width = 1024,
+                Height = 768
+            };
+
+            _webView.Loaded += OnWebViewLoaded;
+            _webView.NavigationCompleted += OnWebViewNavigationCompleted;
+
+            // Add controls to grid
+            mainGrid.AddChild(controlPanel, 0, 0);
+            mainGrid.AddChild(_webView, 1, 0);
+
+            // Configure window
+            _window = new Window
+            {
+                Title = "TradingView Chart",
+                Width = 1024,
+                Height = 800,
+                Child = mainGrid,
+                WindowState = WindowState.Normal,
+                Topmost = false
+            };
+
+            LoadTradingViewChart();
+            _window.Show();
+        }
+
+        private void LoadTradingViewChart()
+        {
+            var tradingViewWidgetHtml = $@"
+    <div class=""tradingview-widget-container"" style=""height:100%;width:100%"">
+        <div class=""tradingview-widget-container__widget"" style=""height:calc(100% - 32px);width:100%""></div>
+        <div class=""tradingview-widget-copyright"">
+            <a href=""https://www.tradingview.com/"" rel=""noopener nofollow"" target=""_blank"">
+                <span class=""blue-text"">Track all markets on TradingView</span>
+            </a>
+        </div>
+        <script type=""text/javascript"" src=""https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"" async>
+        {{
+            ""autosize"": true,
+            ""symbol"": ""{_symbolTextBox.Text}"",
+            ""interval"": ""1"",
+            ""timezone"": ""Asia/Tehran"",
+            ""theme"": ""dark"",
+            ""style"": ""1"",
+            ""locale"": ""en"",
+            ""backgroundColor"": ""rgba(0, 0, 0, 1)"",
+            ""gridColor"": ""rgba(0, 0, 0, 1)"",
+            ""allow_symbol_change"": true,
+            ""calendar"": false,
+            ""hide_volume"": true,
+            ""support_host"": ""https://www.tradingview.com""
+        }}
+        </script>
+    </div>";
+
+            _webView.NavigateToStringAsync(tradingViewWidgetHtml);
+        }
+
+        private void OnReloadButtonClick(ButtonClickEventArgs args)
+        {
+            LoadTradingViewChart();
+        }
+
+        private void OnWebViewLoaded(WebViewLoadedEventArgs args)
+        {
+            Print("WebView loaded successfully");
+        }
+
+        private void OnWebViewNavigationCompleted(WebViewNavigationCompletedEventArgs args)
+        {
+            Print($"Navigation completed: {args.Url}, Status: {args.HttpStatusCode}");
+        }
+
+        protected override void OnStop()
+        {
+            if (_window != null)
+            {
+                _window.Close();
+            }
+        }
+    }
+}
